@@ -1,20 +1,38 @@
-This is my data pipeline.
+# Market Data Pipeline
 
-## Database Connection
+An automated ETL pipeline for fetching, processing, and storing AI research papers from OpenAlex into a PostgreSQL database.
 
-A PostgreSQL database utility module for connecting to Neon database.
+## Overview
 
-### Setup
+This pipeline automates the collection and storage of AI research papers, providing a structured database for analysis and research. The system fetches papers from the OpenAlex API, filters them by AI relevance, and stores them in a normalized PostgreSQL database with comprehensive metadata.
 
-1. **Install dependencies:**
+## Features
+
+- **Automated Paper Fetching**: Retrieves recent AI research papers from OpenAlex API
+- **Intelligent Filtering**: Filters papers by AI relevance score and field classification
+- **Robust Database Schema**: Normalized schema with papers, authors, and relationships
+- **Batch Import**: Efficient bulk import with UPSERT strategy for deduplication
+- **Comprehensive Logging**: Detailed logs for monitoring and debugging
+- **Schema Management**: Automated database schema deployment
+
+## Setup
+
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Configure database credentials:**
+**Dependencies:**
 
-Copy the `env.template` file to `.env` and add your database password:
+- `pyalex==0.19` - OpenAlex API client
+- `psycopg2-binary==2.9.9` - PostgreSQL adapter
+- `python-dotenv==1.0.0` - Environment variable management
+- `streamlit==1.51.0` - Web interface (optional)
+
+### 2. Configure Database Credentials
+
+Copy the `env.template` file to `.env` and add your database credentials:
 
 ```bash
 # On Windows PowerShell
@@ -24,27 +42,118 @@ Copy-Item env.template .env
 cp env.template .env
 ```
 
-Then edit `.env` and replace `your_password_here` with your actual database password:
+Edit `.env` and set your database password:
 
 ```
 DB_PASSWORD=your_actual_password
 ```
 
-### Usage
+### 3. Deploy Database Schema
 
-#### Quick Test
-
-Test the database connection:
+Deploy the database schema before importing data:
 
 ```bash
-# Run the database module directly
-python database.py
-
-# Or run the comprehensive test suite
-python test_database.py
+python database/deploy_schema.py
 ```
 
-#### Using in Your Code
+This creates:
+
+- 3 tables: `papers`, `authors`, `paper_authors`
+- 39 indexes for optimized queries
+- 1 trigger function for automatic metric updates
+- 3 views for common queries
+
+## Usage
+
+### Fetch AI Research Papers
+
+Fetch recent AI papers from OpenAlex (last 3 days):
+
+```bash
+python fetch_ai_papers.py
+```
+
+**What it does:**
+
+- Searches for papers with "Artificial Intelligence" concept
+- Filters by AI relevance score (≥ 0.7) OR AI field/subfield
+- Saves filtered results to `temp/ai_papers_TIMESTAMP.json`
+- Sorts papers by relevance score (highest first)
+
+**Output:**
+
+```
+✅ Retrieved 1,234 AI-related paper(s) from API
+✅ Filtered to 456 highly relevant AI paper(s)
+   📊 Precision: 37.0%
+   📊 Papers with AI field/subfield: 234
+   📊 Papers with score ≥ 0.7: 222
+💾 Saved 456 paper(s) to: temp/ai_papers_2025-11-14_13-04-35.json
+```
+
+### Import Papers to Database
+
+Import papers from JSON file into the database:
+
+```bash
+python database/import_papers.py temp/ai_papers_TIMESTAMP.json
+```
+
+**Options:**
+
+- `--log-dir`: Directory for log files (default: `logs`)
+- `--batch-size`: Papers per batch (default: 1)
+
+**What it does:**
+
+- Transforms JSON data to database schema format
+- Inserts/updates papers, authors, and relationships
+- Uses UPSERT strategy to avoid duplicates
+- Provides detailed statistics and logging
+
+**Output:**
+
+```
+======================================================================
+IMPORT SUMMARY
+======================================================================
+Papers:
+  - Processed: 456
+  - Inserted:  423
+  - Updated:   33
+  - Failed:    0
+
+Authors:
+  - Inserted:  1,234
+  - Updated:   567
+  - Failed:    0
+
+Paper-Authors Relationships:
+  - Inserted:  2,345
+  - Updated:   123
+  - Failed:    0
+
+Duration: 45.67 seconds
+======================================================================
+```
+
+### Test Database Connection
+
+Verify your database connection:
+
+```bash
+# Quick test
+python database/database.py
+
+# Comprehensive test suite
+python database/test_database.py
+```
+
+## Database Module
+
+The `database` module provides utilities for connecting to PostgreSQL:
+
+### Using in Your Code
 
 ```python
 from database import get_connection, execute_query, verify_connection
@@ -52,11 +161,11 @@ from database import get_connection, execute_query, verify_connection
 # Method 1: Using context manager (recommended)
 with get_connection() as conn:
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM your_table")
+    cursor.execute("SELECT * FROM papers WHERE ai_relevance_score > 0.9")
     results = cursor.fetchall()
 
 # Method 2: Using execute_query helper
-results = execute_query("SELECT * FROM your_table")
+results = execute_query("SELECT COUNT(*) FROM papers")
 
 # Method 3: Verify connection
 success, message = verify_connection()
@@ -78,96 +187,137 @@ print(message)
 - **User**: `neondb_owner`
 - **SSL Mode**: `require`
 
-## Unit Converter Script
+## Database Schema
 
-A Python script for converting between metric and imperial measurements.
+### Tables
 
-### Architecture
+1. **`papers`**: Research paper metadata
 
-The script uses a clean, object-oriented architecture with separated concerns:
+   - Paper ID, DOI, title, publication info
+   - Journal and publisher information
+   - Open access status and URLs
+   - Citation metrics (cited_by_count, FWCI)
+   - Topics, concepts, and keywords
+   - AI relevance score and flags
 
-- **`UnitConverter` class**: Pure business logic for all conversions (no UI code)
-- **`ConverterUI` class**: User interface and display logic (uses UnitConverter for conversions)
+2. **`authors`**: Author information
 
-This separation makes the code:
+   - Author ID, display name, ORCID
+   - Primary institution and country
+   - Automatically updated metrics (paper count, citations)
 
-- Easy to test
-- Easy to maintain
-- Extensible (can add GUI, web interface, etc. without changing conversion logic)
+3. **`paper_authors`**: Many-to-many relationships
+   - Paper-author associations
+   - Author position and sequence
+   - Institutional affiliations
+   - Corresponding author flags
 
-### Features
+### Views
 
-- **Length**: km, m, cm, mm ↔ miles, yards, feet, inches
-- **Weight**: kg, g, mg ↔ pounds, ounces
-- **Volume**: liters, ml ↔ gallons, quarts, pints, cups, fluid ounces
-- **Temperature**: Celsius ↔ Fahrenheit ↔ Kelvin
+- **`paper_summary`**: Aggregated paper statistics
+- **`author_summary`**: Author metrics and rankings
+- **`recent_papers`**: Recently published papers
 
-### Usage
+See `database/SCHEMA_SUMMARY.md` for detailed schema documentation.
 
-Run the script:
+## Project Structure
+
+```
+market-data-pipeline/
+├── database/
+│   ├── database.py          # Database connection utilities
+│   ├── deploy_schema.py     # Schema deployment script
+│   ├── import_papers.py     # Paper import ETL script
+│   ├── schema.sql           # Database schema definition
+│   ├── test_database.py     # Database connection tests
+│   └── SCHEMA_SUMMARY.md    # Schema documentation
+├── logs/                    # Import logs (timestamped)
+├── temp/                    # Temporary JSON files
+├── fetch_ai_papers.py       # OpenAlex API fetcher
+├── requirements.txt         # Python dependencies
+├── env.template             # Environment variable template
+└── README.md               # This file
+```
+
+## Workflow
+
+The typical workflow for the pipeline:
+
+1. **Fetch Papers**: Run `fetch_ai_papers.py` to get recent AI papers
+2. **Import to Database**: Run `import_papers.py` with the generated JSON file
+3. **Analyze Data**: Query the database for insights and analysis
+
+### Example Complete Workflow
 
 ```bash
-python converter.py
+# Activate virtual environment (Windows)
+.venv\Scripts\activate
+
+# Fetch recent papers
+python fetch_ai_papers.py
+
+# Import to database (use the generated filename)
+python database/import_papers.py temp/ai_papers_2025-11-14_13-04-35.json
+
+# Check logs for details
+type logs\import_papers_2025-11-14_13-05-46.log
 ```
 
-The script provides an interactive menu where you can:
+## AI Relevance Scoring
 
-1. Select a measurement category (Length, Weight, Volume, or Temperature)
-2. Choose your source unit
-3. Choose your target unit
-4. Enter the value to convert
-5. Get the converted result
+Papers are scored based on multiple factors:
 
-### Example
+- **Keywords**: Direct AI terms (2.0x weight), ML/DL terms (1.5x weight)
+- **Concepts**: AI concepts (2.0x weight), ML concepts (1.5x weight)
+- **Topics**: AI field/subfield (0.9 score), CS field (0.5 score)
 
-```
---- MAIN MENU ---
-1. Length Conversion
-2. Weight Conversion
-3. Volume Conversion
-4. Temperature Conversion
-5. Exit
+**Selection Criteria:**
 
-Enter your choice (1-5): 1
+- Papers with AI relevance score ≥ 0.7, OR
+- Papers with "Artificial Intelligence" as field or subfield
 
-Available length units:
-  1. km
-  2. m
-  3. cm
-  4. mm
-  5. mile
-  6. yard
-  7. foot
-  8. inch
+## Logging
 
-Select source unit: 5 (mile)
-Select target unit: 1 (km)
-Enter value in mile: 10
+All import operations are logged to `logs/` directory with timestamps:
 
-✓ RESULT: 10 mile = 16.093440 km
-```
+- **Console**: INFO level messages (progress, summary)
+- **File**: DEBUG level messages (detailed operations, errors)
 
-### Requirements
+Log files include:
 
-- Python 3.x (no external dependencies)
+- Detailed transformation steps
+- Database operations (inserts/updates)
+- Error messages with stack traces
+- Final statistics summary
 
-### Code Structure
+## Troubleshooting
 
-```python
-# Using the converter programmatically
-from converter import UnitConverter
+### Database Connection Issues
 
-converter = UnitConverter()
+1. Check `.env` file exists and has correct credentials
+2. Verify database is accessible from your network
+3. Run `python database/test_database.py` for diagnostics
 
-# Direct conversion methods
-result = converter.convert_length(10, "km", "mile")
-result = converter.convert_weight(1, "kg", "pound")
-result = converter.convert_volume(1, "liter", "gallon")
-result = converter.convert_temperature(0, "celsius", "fahrenheit")
+### Import Failures
 
-# Generic conversion method
-result = converter.convert("length", 100, "m", "foot")
+1. Check log files in `logs/` directory for detailed errors
+2. Verify JSON file format matches OpenAlex schema
+3. Ensure database schema is deployed (`deploy_schema.py`)
 
-# Get available units
-units = converter.get_available_units("length")
-```
+### API Rate Limits
+
+The fetcher includes automatic retry with exponential backoff:
+
+- Max 10 retry attempts
+- Initial delay: 1 second
+- Exponential backoff multiplier: 2x
+
+## Contributing
+
+When adding new features:
+
+1. Update the database schema in `database/schema.sql`
+2. Redeploy schema using `deploy_schema.py`
+3. Update transformation logic in `import_papers.py`
+4. Add tests to verify functionality
+5. Update this README with new features
