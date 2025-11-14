@@ -1,5 +1,83 @@
 This is my data pipeline.
 
+## Database Connection
+
+A PostgreSQL database utility module for connecting to Neon database.
+
+### Setup
+
+1. **Install dependencies:**
+
+```bash
+pip install -r requirements.txt
+```
+
+2. **Configure database credentials:**
+
+Copy the `env.template` file to `.env` and add your database password:
+
+```bash
+# On Windows PowerShell
+Copy-Item env.template .env
+
+# On Linux/Mac
+cp env.template .env
+```
+
+Then edit `.env` and replace `your_password_here` with your actual database password:
+
+```
+DB_PASSWORD=your_actual_password
+```
+
+### Usage
+
+#### Quick Test
+
+Test the database connection:
+
+```bash
+# Run the database module directly
+python database.py
+
+# Or run the comprehensive test suite
+python test_database.py
+```
+
+#### Using in Your Code
+
+```python
+from database import get_connection, execute_query, verify_connection
+
+# Method 1: Using context manager (recommended)
+with get_connection() as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM your_table")
+    results = cursor.fetchall()
+
+# Method 2: Using execute_query helper
+results = execute_query("SELECT * FROM your_table")
+
+# Method 3: Verify connection
+success, message = verify_connection()
+print(message)
+```
+
+### Database Module Features
+
+- **`DatabaseConfig`**: Loads credentials from `.env` file
+- **`DatabaseConnection`**: Connection manager with context manager support
+- **`get_connection()`**: Context manager for easy connection handling
+- **`execute_query()`**: Helper function for executing queries
+- **`verify_connection()`**: Test and verify database connectivity
+
+### Connection Details
+
+- **Host**: `ep-polished-moon-agsi4bae-pooler.c-2.eu-central-1.aws.neon.tech`
+- **Database**: `neondb`
+- **User**: `neondb_owner`
+- **SSL Mode**: `require`
+
 ## Unit Converter Script
 
 A Python script for converting between metric and imperial measurements.

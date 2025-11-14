@@ -48,3 +48,6 @@ Thumbs.db
 
 # Temporary data files
 temp/
+
+#.env
+.env
