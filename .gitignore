@@ -43,3 +43,8 @@ env/
 .DS_Store
 Thumbs.db
 
+#exercices
+/exercices/
+
+# Temporary data files
+temp/
