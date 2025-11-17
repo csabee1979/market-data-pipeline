@@ -8,6 +8,7 @@ This pipeline automates the complete workflow for collecting, processing, and va
 
 ## Features
 
+### **📊 Data Pipeline**
 - **Consolidated Pipeline**: Single command to run the complete workflow
 - **Automated Paper Fetching**: Retrieves recent AI research papers from OpenAlex API
 - **Intelligent Filtering**: Filters papers by AI relevance score and field classification
@@ -17,6 +18,16 @@ This pipeline automates the complete workflow for collecting, processing, and va
 - **Comprehensive Logging**: Detailed logs for monitoring and debugging
 - **Schema Management**: Automated database schema deployment
 - **Configurable Execution**: YAML-based configuration for all pipeline stages
+
+### **📈 Analytics Dashboard**
+- **Interactive Streamlit Dashboard**: Web-based analytics interface
+- **Multi-Page Navigation**: Overview, publications, authors, topics, geographic analysis
+- **Real-time Visualizations**: Interactive charts with Plotly and modern UI
+- **Search & Filtering**: Find papers by keywords, filter by date ranges
+- **Performance Metrics**: Citation analysis, H-index rankings, impact metrics
+- **Cross-Platform Launchers**: Easy-to-use scripts for Windows, Linux, Mac
+- **Automated Setup**: One-click environment setup and dependency management
+- **Professional Design**: Responsive layout with custom styling
 
 ## Setup
 
@@ -28,11 +39,19 @@ pip install -r requirements.txt
 
 **Dependencies:**
 
+**Core Pipeline:**
 - `pyalex==0.19` - OpenAlex API client
 - `psycopg2-binary==2.9.9` - PostgreSQL adapter
 - `python-dotenv==1.0.0` - Environment variable management
 - `pyyaml>=6.0` - YAML configuration file parsing
-- `streamlit==1.51.0` - Web interface (optional)
+
+**Analytics Dashboard:**
+- `streamlit==1.51.0` - Web dashboard framework
+- `plotly>=5.17.0` - Interactive visualizations
+- `pandas>=2.0.0` - Data manipulation and analysis
+- `numpy>=1.24.0` - Numerical computing
+- `altair>=5.0.0` - Additional chart library
+- `streamlit-aggrid>=0.3.0` - Enhanced data tables
 
 ### 2. Configure Database Credentials
 
@@ -68,6 +87,64 @@ This creates:
 - 3 views for common queries
 
 ## Usage
+
+### Analytics Dashboard (Quick Start)
+
+Launch the interactive analytics dashboard to explore your data:
+
+#### **Option A: Using Launcher Scripts (Recommended)**
+
+**Windows (Command Prompt):**
+```cmd
+# Simply double-click or run:
+run_dashboard.bat
+```
+
+**Windows (PowerShell):**
+```powershell
+# You may need to allow script execution first:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Then run:
+.\run_dashboard.ps1
+```
+
+**Linux/Mac/WSL:**
+```bash
+# Make executable (first time only)
+chmod +x run_dashboard.sh
+
+# Run the dashboard
+./run_dashboard.sh
+```
+
+#### **Option B: Using Python Launcher**
+```bash
+python run_dashboard.py
+```
+
+#### **Option C: Direct Streamlit**
+```bash
+streamlit run research_dashboard.py
+```
+
+The dashboard opens at `http://localhost:8501` with:
+- **📊 Overview**: Key metrics, recent papers, search functionality  
+- **📈 Publication Trends**: Timeline analysis, journal insights, topic distribution
+- **👥 Authors & Institutions**: Top researchers, performance metrics, geographic analysis
+- **🔬 Research Topics**: AI/ML trends, topic analysis, detailed breakdowns
+- **🌍 Geographic Analysis**: Global research distribution and quality metrics
+
+### **Launcher Script Features:**
+- ✅ **Automatic Environment Setup**: Creates and activates virtual environment
+- ✅ **Dependency Installation**: Installs required packages automatically
+- ✅ **Database Connection Test**: Verifies database connectivity
+- ✅ **Error Handling**: Clear error messages and troubleshooting tips
+- ✅ **Cross-Platform**: Works on Windows, Linux, Mac, and WSL
+
+---
+
+## Data Pipeline Usage
 
 ### Option 1: Consolidated Pipeline (Recommended)
 
@@ -327,9 +404,15 @@ market-data-pipeline/
 ├── pipeline.py              # Consolidated pipeline orchestrator
 ├── pipeline_config.yaml     # Pipeline configuration
 ├── fetch_ai_papers.py       # OpenAlex API fetcher
+├── research_dashboard.py    # 📊 Streamlit analytics dashboard
+├── dashboard_config.py      # Dashboard configuration & utilities
+├── run_dashboard.py         # 🐍 Python dashboard launcher
+├── run_dashboard.sh         # 🐧 Linux/Mac bash launcher
+├── run_dashboard.bat        # 🪟 Windows batch launcher
+├── run_dashboard.ps1        # 💎 PowerShell launcher
 ├── requirements.txt         # Python dependencies
 ├── env.template             # Environment variable template
-└── README.md               # This file
+└── README.md               # This comprehensive guide
 ```
 
 ## Workflow Options
@@ -444,21 +527,49 @@ Log files include:
 
 ## Troubleshooting
 
-### Database Connection Issues
+### Dashboard Issues
 
+**Dashboard won't start:**
+- Check if all dependencies are installed: `pip install -r requirements.txt`
+- Verify virtual environment is activated
+- Ensure Streamlit is properly installed
+- Use launcher scripts for automatic environment setup
+
+**Database connection errors:**
+- Verify `.env` file has correct credentials
+- Check database connectivity using `python database/database.py`
+- Ensure Neon database is accessible from your network
+- Test with: `python database/test_database.py`
+
+**Slow dashboard performance:**
+- Database queries are cached for 5 minutes
+- Large datasets may take time to load initially
+- Consider adjusting cache TTL in `dashboard_config.py`
+
+**Empty visualizations:**
+- Check if database has data (run pipeline first)
+- Verify date range filters aren't too restrictive
+- Ensure database queries are returning results
+
+**Launcher script issues:**
+- **Permission Denied (Linux/Mac)**: `chmod +x run_dashboard.sh`
+- **PowerShell Execution Policy (Windows)**: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+- **Python Not Found**: Install Python 3.7+ and add to PATH
+
+### Pipeline Issues
+
+**Database Connection Issues:**
 1. Check `.env` file exists and has correct credentials
 2. Verify database is accessible from your network
 3. Run `python database/test_database.py` for diagnostics
 
-### Import Failures
-
+**Import Failures:**
 1. Check log files in `logs/` directory for detailed errors
 2. Verify JSON file format matches OpenAlex schema
 3. Ensure database schema is deployed (`deploy_schema.py`)
 4. Run data quality tests to identify specific issues
 
-### Pipeline Failures
-
+**Pipeline Failures:**
 1. Check pipeline logs (`logs/pipeline_*.log`) for stage-specific errors
 2. Use `--dry-run` flag to validate configuration without making changes
 3. Run individual stages separately to isolate issues
@@ -485,6 +596,52 @@ The fetcher includes automatic retry with exponential backoff:
 - Graceful handling of interruptions
 - Detailed logging for debugging
 
+## Dashboard Launcher Scripts
+
+Multiple launcher scripts are provided for easy dashboard execution across different platforms:
+
+| Script | Platform | Features |
+|--------|----------|----------|
+| `run_dashboard.bat` | Windows CMD | Native batch script, user-friendly prompts |
+| `run_dashboard.ps1` | Windows PowerShell | Advanced features, colored output |
+| `run_dashboard.sh` | Linux/Mac/WSL | Bash script with error trapping |
+| `run_dashboard.py` | All Platforms | Cross-platform Python launcher |
+
+### **Automated Setup Process**
+1. ✅ **Environment Check**: Verifies you're in the correct directory
+2. ✅ **Virtual Environment**: Creates `.venv` if it doesn't exist
+3. ✅ **Dependencies**: Installs packages from `requirements.txt`
+4. ✅ **Database Test**: Checks connection to your Neon database
+5. ✅ **Streamlit Launch**: Starts the dashboard server
+
+### **Platform-Specific Features**
+
+**Bash Script (`run_dashboard.sh`)**
+- 🌈 Colored output with progress indicators
+- 🛡️ Error trapping with line numbers
+- ⚙️ Smart Python detection (python3/python)
+
+**Batch Script (`run_dashboard.bat`)**
+- 🪟 Native Windows compatibility
+- 📱 User-friendly prompts and validation
+- 📂 Comprehensive file checking
+
+**PowerShell Script (`run_dashboard.ps1`)**
+- 💎 Advanced PowerShell functionality
+- 🎨 Professional colored output
+- 🛠️ Enhanced error handling
+
+**Python Launcher (`run_dashboard.py`)**
+- 🐍 Cross-platform compatibility
+- 🔌 Deep database integration
+- 📊 Detailed validation reporting
+
+### **Quick Launcher Guide**
+- **Windows users**: Use `run_dashboard.bat` (easiest)
+- **Linux/Mac users**: Use `run_dashboard.sh` (native bash)
+- **Developers**: Use `run_dashboard.py` (most detailed)
+- **Automation**: Any script works for CI/CD integration
+
 ## Contributing
 
 When adding new features:
@@ -494,5 +651,7 @@ When adding new features:
 3. Update transformation logic in `import_papers.py`
 4. Add data quality tests in `database/tests/`
 5. Update pipeline configuration if needed
-6. Add tests to verify functionality
-7. Update this README with new features
+6. Add dashboard queries in `dashboard_config.py` if needed
+7. Update launcher scripts if new dependencies are required
+8. Add tests to verify functionality
+9. Update this README with new features
