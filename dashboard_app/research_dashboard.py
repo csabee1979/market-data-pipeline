@@ -28,22 +28,102 @@ from datetime import datetime, timedelta
 import sys
 import os
 
+print("🚀 Dashboard starting...")
+print(f"📁 Python path: {sys.path[:3]}...")
+
 # Import dashboard utilities
 # Add the parent directory to sys.path to enable imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dashboard_app.dashboard_config import (
-    DashboardConfig,
-    DashboardQueries,
-    setup_page_config,
-    format_number,
-    create_sidebar_filters,
-)
+
+try:
+    print("📦 Importing dashboard config...")
+    from dashboard_app.dashboard_config import (
+        DashboardConfig,
+        DashboardQueries,
+        setup_page_config,
+        format_number,
+        create_sidebar_filters,
+    )
+    print("✅ Dashboard config imported successfully")
+except Exception as e:
+    print(f"❌ Dashboard config import failed: {e}")
+    st.error(f"Configuration import failed: {e}")
+    st.stop()
 
 
 def main():
     """Main dashboard application."""
     # Setup page configuration
     setup_page_config()
+
+    # Add diagnostics section at the top
+    with st.expander("🔍 Database Diagnostics (Click to expand)", expanded=False):
+        st.markdown("**Copy these logs to help troubleshoot:**")
+        
+        diagnostic_info = []
+        diagnostic_info.append("=== STREAMLIT CLOUD DIAGNOSTICS ===")
+        
+        # Check if we're in Streamlit Cloud
+        try:
+            import streamlit as st_check
+            if hasattr(st_check, 'secrets'):
+                diagnostic_info.append("✅ Streamlit secrets object exists")
+                if st_check.secrets:
+                    diagnostic_info.append("✅ Streamlit secrets has data")
+                    diagnostic_info.append(f"📋 Available secret keys: {list(st_check.secrets.keys())}")
+                    
+                    # Check specific database keys
+                    db_keys = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_SSLMODE']
+                    for key in db_keys:
+                        if key in st_check.secrets:
+                            value = st_check.secrets[key]
+                            if key == 'DB_PASSWORD':
+                                diagnostic_info.append(f"🔐 {key}: {'*' * len(str(value))}")
+                            elif key == 'DB_HOST':
+                                diagnostic_info.append(f"🌐 {key}: {str(value)[:30]}...")
+                            else:
+                                diagnostic_info.append(f"📝 {key}: {value}")
+                        else:
+                            diagnostic_info.append(f"❌ Missing key: {key}")
+                else:
+                    diagnostic_info.append("❌ Streamlit secrets is empty")
+            else:
+                diagnostic_info.append("❌ Streamlit secrets object not found")
+        except Exception as e:
+            diagnostic_info.append(f"⚠️ Secrets check failed: {e}")
+        
+        # Test database configuration
+        try:
+            diagnostic_info.append("\n=== DATABASE CONFIG TEST ===")
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database"))
+            from database import get_connection
+            
+            diagnostic_info.append("✅ Database module imported")
+            
+            conn = get_connection()
+            if conn:
+                diagnostic_info.append("✅ Database connection successful")
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM papers")
+                    count = cursor.fetchone()[0]
+                    diagnostic_info.append(f"📊 Papers in database: {count}")
+                    cursor.close()
+                    conn.close()
+                except Exception as e:
+                    diagnostic_info.append(f"⚠️ Query failed: {e}")
+            else:
+                diagnostic_info.append("❌ Database connection failed - returned None")
+                
+        except Exception as e:
+            diagnostic_info.append(f"❌ Database test failed: {e}")
+        
+        # Display all diagnostic info
+        diagnostic_text = "\n".join(diagnostic_info)
+        st.code(diagnostic_text, language="text")
+        
+        if st.button("🔄 Refresh Diagnostics"):
+            st.rerun()
 
     # Create main header
     st.markdown(
