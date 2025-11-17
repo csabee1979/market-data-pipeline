@@ -44,6 +44,7 @@ try:
         format_number,
         create_sidebar_filters,
     )
+
     print("✅ Dashboard config imported successfully")
 except Exception as e:
     print(f"❌ Dashboard config import failed: {e}")
@@ -59,28 +60,41 @@ def main():
     # Add diagnostics section at the top
     with st.expander("🔍 Database Diagnostics (Click to expand)", expanded=False):
         st.markdown("**Copy these logs to help troubleshoot:**")
-        
+
         diagnostic_info = []
         diagnostic_info.append("=== STREAMLIT CLOUD DIAGNOSTICS ===")
-        
+
         # Check if we're in Streamlit Cloud
         try:
             import streamlit as st_check
-            if hasattr(st_check, 'secrets'):
+
+            if hasattr(st_check, "secrets"):
                 diagnostic_info.append("✅ Streamlit secrets object exists")
                 if st_check.secrets:
                     diagnostic_info.append("✅ Streamlit secrets has data")
-                    diagnostic_info.append(f"📋 Available secret keys: {list(st_check.secrets.keys())}")
-                    
+                    diagnostic_info.append(
+                        f"📋 Available secret keys: {list(st_check.secrets.keys())}"
+                    )
+
                     # Check specific database keys
-                    db_keys = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_SSLMODE']
+                    db_keys = [
+                        "DB_HOST",
+                        "DB_NAME",
+                        "DB_USER",
+                        "DB_PASSWORD",
+                        "DB_SSLMODE",
+                    ]
                     for key in db_keys:
                         if key in st_check.secrets:
                             value = st_check.secrets[key]
-                            if key == 'DB_PASSWORD':
-                                diagnostic_info.append(f"🔐 {key}: {'*' * len(str(value))}")
-                            elif key == 'DB_HOST':
-                                diagnostic_info.append(f"🌐 {key}: {str(value)[:30]}...")
+                            if key == "DB_PASSWORD":
+                                diagnostic_info.append(
+                                    f"🔐 {key}: {'*' * len(str(value))}"
+                                )
+                            elif key == "DB_HOST":
+                                diagnostic_info.append(
+                                    f"🌐 {key}: {str(value)[:30]}..."
+                                )
                             else:
                                 diagnostic_info.append(f"📝 {key}: {value}")
                         else:
@@ -91,15 +105,21 @@ def main():
                 diagnostic_info.append("❌ Streamlit secrets object not found")
         except Exception as e:
             diagnostic_info.append(f"⚠️ Secrets check failed: {e}")
-        
+
         # Test database configuration
         try:
             diagnostic_info.append("\n=== DATABASE CONFIG TEST ===")
-            sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "database"))
+            sys.path.insert(
+                0,
+                os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "database",
+                ),
+            )
             from database import get_connection
-            
+
             diagnostic_info.append("✅ Database module imported")
-            
+
             conn = get_connection()
             if conn:
                 diagnostic_info.append("✅ Database connection successful")
@@ -114,14 +134,14 @@ def main():
                     diagnostic_info.append(f"⚠️ Query failed: {e}")
             else:
                 diagnostic_info.append("❌ Database connection failed - returned None")
-                
+
         except Exception as e:
             diagnostic_info.append(f"❌ Database test failed: {e}")
-        
+
         # Display all diagnostic info
         diagnostic_text = "\n".join(diagnostic_info)
         st.code(diagnostic_text, language="text")
-        
+
         if st.button("🔄 Refresh Diagnostics"):
             st.rerun()
 
