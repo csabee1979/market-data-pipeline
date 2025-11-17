@@ -186,7 +186,7 @@ def show_overview_page(filters: dict):
                 ),
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("No publication trends data available.")
 
@@ -206,7 +206,7 @@ def show_overview_page(filters: dict):
             )
             fig.update_traces(textposition="inside", textinfo="percent+label")
             fig.update_layout(height=300, showlegend=False, font=dict(size=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # Mini stats
         if not topics_df.empty:
@@ -267,7 +267,7 @@ def show_overview_page(filters: dict):
                     "country": "Country",
                 },
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
     else:
@@ -300,7 +300,7 @@ def show_publications_page(filters: dict):
                 labels={"paper_count": "Number of Papers", "month": "Month"},
             )
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             # Open access trends
@@ -313,7 +313,7 @@ def show_publications_page(filters: dict):
             )
             fig.update_layout(height=400)
             fig.update_traces(line=dict(color="#2ca02c", width=3))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     # Top Journals Analysis
     st.subheader("📚 Journal Analysis")
@@ -332,7 +332,7 @@ def show_publications_page(filters: dict):
                 orientation="h",
             )
             fig.update_layout(height=500, yaxis={"categoryorder": "total ascending"})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             # Journal metrics table
@@ -353,7 +353,7 @@ def show_publications_page(filters: dict):
                     "oa_percentage": "OA %",
                 },
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
             )
 
     # Research Topics Distribution
@@ -371,7 +371,7 @@ def show_publications_page(filters: dict):
                 title="Research Topics by Paper Count",
             )
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             # AI vs Non-AI papers
@@ -390,7 +390,7 @@ def show_publications_page(filters: dict):
                 },
             )
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 def show_authors_page(filters: dict):
@@ -423,7 +423,7 @@ def show_authors_page(filters: dict):
             orientation="h",
         )
         fig.update_layout(height=500, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Authors metrics
@@ -440,7 +440,7 @@ def show_authors_page(filters: dict):
                 "h_index": "H-index",
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
     # H-index vs Citations Analysis
@@ -460,7 +460,7 @@ def show_authors_page(filters: dict):
             labels={"citations": "Total Citations", "h_index": "H-index"},
         )
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Papers vs citations
@@ -474,7 +474,7 @@ def show_authors_page(filters: dict):
             labels={"papers": "Number of Papers", "citations": "Total Citations"},
         )
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Geographic and Institutional Analysis
     if not geo_df.empty:
@@ -493,7 +493,7 @@ def show_authors_page(filters: dict):
                 orientation="h",
             )
             fig.update_layout(height=500, yaxis={"categoryorder": "total ascending"})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             # Top institutions from authors
@@ -524,7 +524,7 @@ def show_authors_page(filters: dict):
                     fig.update_layout(
                         height=500, yaxis={"categoryorder": "total ascending"}
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
 
 def show_topics_page(filters: dict):
@@ -555,7 +555,7 @@ def show_topics_page(filters: dict):
             orientation="h",
         )
         fig.update_layout(height=600, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # AI vs Non-AI distribution
@@ -568,7 +568,7 @@ def show_topics_page(filters: dict):
             title="AI/ML Focused Research Areas",
         )
         fig.update_layout(height=600)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Research Impact Analysis
     st.subheader("📊 Research Impact by Topic")
@@ -592,7 +592,7 @@ def show_topics_page(filters: dict):
             },
         )
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Top topics by average citations
@@ -610,7 +610,7 @@ def show_topics_page(filters: dict):
             orientation="h",
         )
         fig.update_layout(height=400, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Detailed Topics Table
     st.subheader("📋 Detailed Topics Analysis")
@@ -646,7 +646,7 @@ def show_topics_page(filters: dict):
             ),
         },
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -678,7 +678,7 @@ def show_geographic_page(filters: dict):
             orientation="h",
         )
         fig.update_layout(height=600, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Top countries metrics
@@ -695,7 +695,7 @@ def show_geographic_page(filters: dict):
                 "avg_citations": "Avg Citations",
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
     # Research Quality Analysis
@@ -718,7 +718,7 @@ def show_geographic_page(filters: dict):
             },
         )
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         # Open access by country
@@ -736,7 +736,7 @@ def show_geographic_page(filters: dict):
             orientation="h",
         )
         fig.update_layout(height=400, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 if __name__ == "__main__":
