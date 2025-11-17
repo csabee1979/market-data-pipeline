@@ -1,8 +1,2 @@
-# System packages required for deployment
-# This file is used by Streamlit Cloud for apt packages
-
-# Required for psycopg2 (PostgreSQL)
 libpq-dev
-
-# Required for scientific computing
 build-essential

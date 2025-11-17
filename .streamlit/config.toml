@@ -1,6 +1,7 @@
 [server]
 headless = true
-port = 8501
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
@@ -10,3 +11,6 @@ primaryColor = "#1f77b4"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f8f9fa"
 textColor = "#000000"
+
+[logger]
+level = "info"
