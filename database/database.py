@@ -42,8 +42,13 @@ class DatabaseConfig:
 
                 # Only use secrets if all required values are present
                 if all([self.host, self.database, self.user, self.password]):
+                    # Debug info for cloud deployment
+                    print(
+                        f"🔐 Using Streamlit secrets: host={self.host[:20]}..., db={self.database}, user={self.user}"
+                    )
                     return
-        except (ImportError, KeyError, AttributeError):
+        except (ImportError, KeyError, AttributeError) as e:
+            print(f"⚠️ Streamlit secrets failed: {e}")
             pass
 
         # Fall back to environment variables (.env file)
@@ -52,6 +57,10 @@ class DatabaseConfig:
         self.user = os.getenv("DB_USER")
         self.password = os.getenv("DB_PASSWORD")
         self.sslmode = os.getenv("DB_SSLMODE", "require")
+
+        print(
+            f"🌍 Using environment variables: host={self.host[:20] if self.host else 'None'}..., db={self.database}, user={self.user}"
+        )
 
         # Validate that all required parameters are loaded
         missing_params = []
