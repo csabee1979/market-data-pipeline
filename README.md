@@ -1,19 +1,22 @@
-# Market Data Pipeline
+# AI Research Papers Data Pipeline
 
-An automated ETL pipeline for fetching, processing, and storing AI research papers from OpenAlex into a PostgreSQL database.
+An automated ETL pipeline for fetching, processing, and storing AI research papers from OpenAlex into a PostgreSQL database with comprehensive data quality validation.
 
 ## Overview
 
-This pipeline automates the collection and storage of AI research papers, providing a structured database for analysis and research. The system fetches papers from the OpenAlex API, filters them by AI relevance, and stores them in a normalized PostgreSQL database with comprehensive metadata.
+This pipeline automates the complete workflow for collecting, processing, and validating AI research papers data. The system provides both individual script execution and a consolidated pipeline that orchestrates the entire process from data fetching to quality validation.
 
 ## Features
 
+- **Consolidated Pipeline**: Single command to run the complete workflow
 - **Automated Paper Fetching**: Retrieves recent AI research papers from OpenAlex API
 - **Intelligent Filtering**: Filters papers by AI relevance score and field classification
 - **Robust Database Schema**: Normalized schema with papers, authors, and relationships
+- **Data Quality Validation**: 18 comprehensive tests for data integrity
 - **Batch Import**: Efficient bulk import with UPSERT strategy for deduplication
 - **Comprehensive Logging**: Detailed logs for monitoring and debugging
 - **Schema Management**: Automated database schema deployment
+- **Configurable Execution**: YAML-based configuration for all pipeline stages
 
 ## Setup
 
@@ -28,6 +31,7 @@ pip install -r requirements.txt
 - `pyalex==0.19` - OpenAlex API client
 - `psycopg2-binary==2.9.9` - PostgreSQL adapter
 - `python-dotenv==1.0.0` - Environment variable management
+- `pyyaml>=6.0` - YAML configuration file parsing
 - `streamlit==1.51.0` - Web interface (optional)
 
 ### 2. Configure Database Credentials
@@ -65,7 +69,91 @@ This creates:
 
 ## Usage
 
-### Fetch AI Research Papers
+### Option 1: Consolidated Pipeline (Recommended)
+
+Run the complete pipeline with a single command:
+
+```bash
+# Run the complete pipeline
+python pipeline.py
+
+# Dry run (validate without making changes)
+python pipeline.py --dry-run
+
+# Use custom configuration
+python pipeline.py --config my_config.yaml
+
+# Enable verbose logging
+python pipeline.py --verbose
+```
+
+**Pipeline Configuration**
+
+The pipeline uses `pipeline_config.yaml` for configuration:
+
+```yaml
+api:
+  days_back: 3 # Days to look back for papers
+  min_ai_score: 0.7 # Minimum AI relevance score
+  output_dir: "temp" # Temporary files directory
+
+database:
+  schema_file: "database/schema.sql"
+  deploy_schema: true # Whether to ensure schema exists
+
+testing:
+  run_tests: true # Whether to run quality tests
+  config_file: "database/test_config.yaml"
+
+logging:
+  level: "INFO" # Log level
+  log_dir: "logs" # Log files directory
+```
+
+**Pipeline Stages**
+
+The pipeline performs these stages in sequence:
+
+1. **Fetch Papers**: Uses `fetch_ai_papers.py` to get recent AI papers from OpenAlex API
+2. **Deploy Schema**: Ensures database tables exist using `deploy_schema.py`
+3. **Load Data**: Processes and imports papers using `import_papers.py`
+4. **Quality Tests**: Runs comprehensive data validation using `test_papers_table.py`
+
+**Example Pipeline Output**
+
+```
+======================================================================
+RESEARCH PAPERS DATA PIPELINE STARTED
+======================================================================
+Configuration: pipeline_config.yaml
+Dry run mode: False
+
+Stage 1: Fetching AI papers from last 3 days...
+✅ Successfully fetched 1638 AI papers
+
+Stage 2: Ensuring database schema...
+✅ Database schema ensured successfully
+
+Stage 3: Loading papers to database...
+✅ Processed 1638 papers (1620 inserted, 18 updated)
+
+Stage 4: Running quality tests...
+✅ All 18 tests passed
+
+======================================================================
+PIPELINE COMPLETED SUCCESSFULLY
+======================================================================
+Duration: 45.23 seconds
+Papers Fetched: 1638
+Papers Processed: 1638
+Tests Passed: 18
+```
+
+### Option 2: Individual Script Execution
+
+You can also run individual components of the pipeline:
+
+#### Fetch AI Research Papers
 
 Fetch recent AI papers from OpenAlex (last 3 days):
 
@@ -91,7 +179,7 @@ python fetch_ai_papers.py
 💾 Saved 456 paper(s) to: temp/ai_papers_2025-11-14_13-04-35.json
 ```
 
-### Import Papers to Database
+#### Import Papers to Database
 
 Import papers from JSON file into the database:
 
@@ -137,7 +225,7 @@ Duration: 45.67 seconds
 ======================================================================
 ```
 
-### Test Database Connection
+#### Test Database Connection
 
 Verify your database connection:
 
@@ -228,36 +316,54 @@ market-data-pipeline/
 │   ├── database.py          # Database connection utilities
 │   ├── deploy_schema.py     # Schema deployment script
 │   ├── import_papers.py     # Paper import ETL script
+│   ├── test_papers_table.py # Data quality test runner
 │   ├── schema.sql           # Database schema definition
 │   ├── test_database.py     # Database connection tests
+│   ├── test_config.yaml     # Data quality test configuration
+│   ├── tests/               # SQL test files by category
 │   └── SCHEMA_SUMMARY.md    # Schema documentation
 ├── logs/                    # Import logs (timestamped)
 ├── temp/                    # Temporary JSON files
+├── pipeline.py              # Consolidated pipeline orchestrator
+├── pipeline_config.yaml     # Pipeline configuration
 ├── fetch_ai_papers.py       # OpenAlex API fetcher
 ├── requirements.txt         # Python dependencies
 ├── env.template             # Environment variable template
 └── README.md               # This file
 ```
 
-## Workflow
+## Workflow Options
 
-The typical workflow for the pipeline:
-
-1. **Fetch Papers**: Run `fetch_ai_papers.py` to get recent AI papers
-2. **Import to Database**: Run `import_papers.py` with the generated JSON file
-3. **Analyze Data**: Query the database for insights and analysis
-
-### Example Complete Workflow
+### Option A: Consolidated Pipeline (Recommended)
 
 ```bash
 # Activate virtual environment (Windows)
 .venv\Scripts\activate
 
-# Fetch recent papers
+# Run complete pipeline
+python pipeline.py --verbose
+
+# Check logs for details
+type logs\pipeline_*.log
+```
+
+### Option B: Individual Script Execution
+
+```bash
+# Activate virtual environment (Windows)
+.venv\Scripts\activate
+
+# 1. Fetch recent papers
 python fetch_ai_papers.py
 
-# Import to database (use the generated filename)
+# 2. Deploy schema (if needed)
+python database/deploy_schema.py
+
+# 3. Import to database (use the generated filename)
 python database/import_papers.py temp/ai_papers_2025-11-14_13-04-35.json
+
+# 4. Run data quality tests
+python database/test_papers_table.py
 
 # Check logs for details
 type logs\import_papers_2025-11-14_13-05-46.log
@@ -276,10 +382,55 @@ Papers are scored based on multiple factors:
 - Papers with AI relevance score ≥ 0.7, OR
 - Papers with "Artificial Intelligence" as field or subfield
 
+## Data Quality Testing
+
+The pipeline includes comprehensive data quality validation with 18 tests across 6 categories:
+
+### Test Categories
+
+1. **Data Completeness** (3 tests)
+
+   - Missing titles, publication info, authors
+
+2. **Data Validity** (3 tests)
+
+   - Invalid years, negative counts, date mismatches
+
+3. **Business Logic** (2 tests)
+
+   - Open access inconsistencies, invalid percentiles
+
+4. **Data Quality** (3 tests)
+
+   - Duplicate DOIs, suspicious citations, retracted papers
+
+5. **Referential Integrity** (2 tests)
+
+   - Orphaned records, missing first authors
+
+6. **Timestamps & Metadata** (2 tests)
+   - Future dates, invalid timestamps
+
+### Running Quality Tests
+
+```bash
+# Run all tests
+python database/test_papers_table.py
+
+# Run with verbose output
+python database/test_papers_table.py --verbose
+
+# Use custom configuration
+python database/test_papers_table.py --config custom_test_config.yaml
+```
+
 ## Logging
 
-All import operations are logged to `logs/` directory with timestamps:
+All operations are logged to `logs/` directory with timestamps:
 
+- **Pipeline**: Complete workflow logs (`pipeline_*.log`)
+- **Import**: Detailed import operations (`import_papers_*.log`)
+- **Tests**: Data quality test results (`test_results.txt`)
 - **Console**: INFO level messages (progress, summary)
 - **File**: DEBUG level messages (detailed operations, errors)
 
@@ -287,6 +438,7 @@ Log files include:
 
 - Detailed transformation steps
 - Database operations (inserts/updates)
+- Data quality test results
 - Error messages with stack traces
 - Final statistics summary
 
@@ -303,6 +455,14 @@ Log files include:
 1. Check log files in `logs/` directory for detailed errors
 2. Verify JSON file format matches OpenAlex schema
 3. Ensure database schema is deployed (`deploy_schema.py`)
+4. Run data quality tests to identify specific issues
+
+### Pipeline Failures
+
+1. Check pipeline logs (`logs/pipeline_*.log`) for stage-specific errors
+2. Use `--dry-run` flag to validate configuration without making changes
+3. Run individual stages separately to isolate issues
+4. Verify all dependencies are installed (`pip install -r requirements.txt`)
 
 ### API Rate Limits
 
@@ -312,6 +472,19 @@ The fetcher includes automatic retry with exponential backoff:
 - Initial delay: 1 second
 - Exponential backoff multiplier: 2x
 
+## Exit Codes
+
+- **Pipeline**: `0` = Success, `1` = Failure
+- **Individual Scripts**: `0` = Success, `1` = Failure
+
+## Error Handling
+
+- Each pipeline stage validates success before proceeding
+- Comprehensive error tracking and reporting
+- Automatic cleanup of temporary files
+- Graceful handling of interruptions
+- Detailed logging for debugging
+
 ## Contributing
 
 When adding new features:
@@ -319,5 +492,7 @@ When adding new features:
 1. Update the database schema in `database/schema.sql`
 2. Redeploy schema using `deploy_schema.py`
 3. Update transformation logic in `import_papers.py`
-4. Add tests to verify functionality
-5. Update this README with new features
+4. Add data quality tests in `database/tests/`
+5. Update pipeline configuration if needed
+6. Add tests to verify functionality
+7. Update this README with new features

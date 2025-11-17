@@ -112,48 +112,57 @@ class TestRunner:
             with open(filepath, "r") as f:
                 content = f.read()
 
-            # Split by test sections (looking for test comments)
+            # Split by test sections and extract SQL queries
             queries = []
-            current_query = []
-            in_test_section = False
+            lines = content.split("\n")
+            i = 0
 
-            for line in content.split("\n"):
-                line_stripped = line.strip()
+            while i < len(lines):
+                line = lines[i].strip()
 
-                # Start of a new test section
-                if line_stripped.startswith("-- Test "):
-                    if current_query and in_test_section:
-                        # Save previous test
-                        query_text = "\n".join(current_query).strip()
-                        if query_text and "SELECT" in query_text:
+                # Look for test section headers (format: "-- Test X.Y:")
+                if line.startswith("-- Test ") and ":" in line:
+                    # Found a test, now collect all SQL until next test or end
+                    test_sql_lines = []
+                    i += 1
+
+                    # Collect all lines until next test section
+                    while i < len(lines):
+                        current_line = lines[i].strip()
+
+                        # Stop if we hit the next test or end of tests
+                        if (
+                            (
+                                current_line.startswith("-- Test ")
+                                and ":" in current_line
+                            )
+                            or current_line.startswith("-- End of ")
+                            or (
+                                current_line.startswith(
+                                    "-- ============================================================================"
+                                )
+                                and i + 1 < len(lines)
+                                and lines[i + 1].strip().startswith("-- Test ")
+                            )
+                        ):
+                            break
+
+                        # Collect all lines for this test
+                        test_sql_lines.append(lines[i])
+                        i += 1
+
+                    # If we found SQL, add it to queries
+                    if test_sql_lines:
+                        query_text = "\n".join(test_sql_lines).strip()
+                        if "SELECT" in query_text:
                             queries.append(query_text)
-                    current_query = []
-                    in_test_section = True
 
-                # Add line to current query if we're in a test section
-                if in_test_section:
-                    current_query.append(line)
+                    # Don't increment i here since we already did in the inner loop
+                    continue
 
-                # End of test section (next test or end of file)
-                if (
-                    line_stripped.startswith(
-                        "-- ============================================================================"
-                    )
-                    and current_query
-                    and in_test_section
-                ):
-                    query_text = "\n".join(current_query).strip()
-                    if query_text and "SELECT" in query_text:
-                        queries.append(query_text)
-                    current_query = []
-                    in_test_section = False
+                i += 1
 
-            # Add the last query if exists
-            if current_query and in_test_section:
-                query_text = "\n".join(current_query).strip()
-                if query_text and "SELECT" in query_text:
-                    queries.append(query_text)
-
+            self.logger.debug(f"Found {len(queries)} queries in {filepath}")
             return queries
 
         except FileNotFoundError:
@@ -167,42 +176,28 @@ class TestRunner:
         """Execute a test query and return failure count and sample records."""
         try:
             with conn.cursor() as cursor:
-                # Split query into count query and sample query
-                query_parts = query.split("SELECT")
+                # Split query by semicolons to separate individual statements
+                statements = [stmt.strip() for stmt in query.split(";") if stmt.strip()]
 
-                if len(query_parts) < 3:
-                    # Simple query, execute as-is
-                    cursor.execute(query)
+                if len(statements) == 0:
+                    return 0, []
+
+                if len(statements) == 1:
+                    # Single query, execute as-is
+                    cursor.execute(statements[0])
                     result = cursor.fetchone()
                     return result[0] if result else 0, []
 
-                # Extract count query (first SELECT after comments)
-                count_query_start = query.find("SELECT")
-                sample_query_start = query.find("SELECT", count_query_start + 1)
-
-                if sample_query_start == -1:
-                    # Only count query
-                    cursor.execute(query)
-                    result = cursor.fetchone()
-                    return result[0] if result else 0, []
-
-                # Extract count query
-                count_query = query[count_query_start:sample_query_start].strip()
-                if count_query.endswith(";"):
-                    count_query = count_query[:-1]
-
-                # Execute count query
+                # First statement should be the count query
+                count_query = statements[0]
                 cursor.execute(count_query)
                 count_result = cursor.fetchone()
                 failure_count = count_result[0] if count_result else 0
 
-                # If there are failures, get sample records
+                # If there are failures and we have a sample query, execute it
                 sample_records = []
-                if failure_count > 0:
-                    sample_query = query[sample_query_start:].strip()
-                    if sample_query.endswith(";"):
-                        sample_query = sample_query[:-1]
-
+                if failure_count > 0 and len(statements) > 1:
+                    sample_query = statements[1]
                     cursor.execute(sample_query)
                     columns = [desc[0] for desc in cursor.description]
                     rows = cursor.fetchall()

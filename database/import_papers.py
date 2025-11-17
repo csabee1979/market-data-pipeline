@@ -78,7 +78,7 @@ Data Quality Fixes:
   - Date mismatches fixed: {self.date_mismatches_fixed}
   - Duplicate DOIs skipped: {self.duplicate_dois_skipped}
   - Citations capped: {self.suspicious_citations_capped}
-  - Validation warnings: {self.validation_warnings}
+  - Papers skipped (no valid authors): {self.validation_warnings}
 {'='*70}
 """
 
@@ -327,6 +327,115 @@ def reset_doi_tracking():
     _seen_dois.clear()
 
 
+def validate_paper_quality(
+    paper_data: Dict,
+    authorships: List[Dict],
+    logger: logging.Logger,
+    stats: ImportStats,
+) -> bool:
+    """
+    Validate paper quality before import to prevent problematic records.
+
+    Args:
+        paper_data: Transformed paper data
+        authorships: List of authorship data
+        logger: Logger instance
+        stats: Statistics tracker
+
+    Returns:
+        True if paper passes quality checks, False if should be skipped
+    """
+    paper_id = paper_data.get("paper_id", "unknown")
+    title = paper_data.get("title", "Unknown")[:50]
+
+    # Check 1: Paper must have at least one valid author
+    valid_authors = []
+    for authorship in authorships:
+        author = authorship.get("author") or {}
+        author_id = extract_id_from_url(author.get("id"))
+        if author_id:
+            valid_authors.append(authorship)
+
+    if not valid_authors:
+        logger.info(f"SKIPPING paper {paper_id} ({title}...): No valid authors")
+        stats.validation_warnings += 1
+        return False
+
+    # Check 2: Author count must match actual valid authors
+    declared_count = paper_data.get("author_count", 0)
+    actual_count = len(valid_authors)
+
+    if declared_count != actual_count:
+        logger.debug(
+            f"Fixing author count for {paper_id}: {declared_count} -> {actual_count}"
+        )
+        paper_data["author_count"] = actual_count
+        stats.date_mismatches_fixed += 1  # Reuse this counter for author count fixes
+
+        # Also update the aggregated author fields based on valid authors only
+        if valid_authors:
+            # Update first author name if needed
+            first_valid_author = next(
+                (a for a in valid_authors if a.get("author_position") == "first"),
+                valid_authors[0],  # Fallback to first valid author
+            )
+            if first_valid_author:
+                author_info = first_valid_author.get("author") or {}
+                paper_data["first_author_name"] = author_info.get("display_name")
+
+    # Check 3: If first_author_name is set, ensure we have a first author
+    first_author_name = paper_data.get("first_author_name")
+    if first_author_name:
+        has_first_author = any(
+            authorship.get("author_position") == "first" for authorship in valid_authors
+        )
+
+        if not has_first_author:
+            # Try to find the first author by sequence or set the first one as "first"
+            if valid_authors:
+                # Set the first valid author as the first author
+                valid_authors[0]["author_position"] = "first"
+                logger.debug(f"Set first author position for {paper_id}")
+            else:
+                # Clear first_author_name if no valid authors
+                paper_data["first_author_name"] = None
+                logger.debug(
+                    f"Cleared first_author_name for {paper_id} (no valid authors)"
+                )
+
+    return True
+
+
+def clean_authorships_data(
+    authorships: List[Dict], logger: logging.Logger
+) -> List[Dict]:
+    """
+    Clean and filter authorships data to only include valid authors.
+
+    Args:
+        authorships: Raw authorship data
+        logger: Logger instance
+
+    Returns:
+        List of valid authorship data
+    """
+    valid_authorships = []
+
+    for idx, authorship in enumerate(authorships):
+        author = authorship.get("author") or {}
+        author_id = extract_id_from_url(author.get("id"))
+
+        if author_id:
+            # Ensure author_sequence is set correctly
+            authorship["author_sequence"] = len(valid_authorships) + 1
+            valid_authorships.append(authorship)
+        else:
+            # Skip authors without valid IDs
+            logger.debug(f"Skipping author without ID at position {idx + 1}")
+
+    return valid_authorships
+
+
 def transform_paper_data(
     paper: Dict, logger: logging.Logger, stats: ImportStats
 ) -> Optional[Dict]:
@@ -444,7 +553,9 @@ def transform_paper_data(
 
         # Validate DOI uniqueness - skip paper if duplicate
         if not validate_doi_uniqueness(doi, paper_id, logger, stats):
-            return None
+            return (
+                "DUPLICATE_DOI"  # Special return value to indicate duplicate DOI skip
+            )
 
         # Validate and fix date consistency
         validated_year, validated_date = validate_and_fix_dates(
@@ -934,7 +1045,7 @@ def process_paper(
     paper: Dict, conn, stats: ImportStats, logger: logging.Logger
 ) -> bool:
     """
-    Process a single paper and insert into database.
+    Process a single paper and insert into database with pre-import validation.
 
     Args:
         paper: Raw paper data from JSON
@@ -951,17 +1062,28 @@ def process_paper(
         if not paper_data:
             stats.papers_failed += 1
             return False
+        elif paper_data == "DUPLICATE_DOI":
+            # Duplicate DOI detected - this is intentional deduplication, not a failure
+            return True  # Return success since duplicate handling worked correctly
 
         paper_id = paper_data["paper_id"]
         logger.debug(f"Processing paper: {paper_id} - {paper_data['title'][:50]}...")
 
-        # Transform authors data
-        authorships = paper.get("authorships") or []
+        # Clean and filter authorships data to only include valid authors
+        raw_authorships = paper.get("authorships") or []
+        clean_authorships = clean_authorships_data(raw_authorships, logger)
+
+        # Validate paper quality before import
+        if not validate_paper_quality(paper_data, clean_authorships, logger, stats):
+            stats.papers_failed += 1
+            return False
+
+        # Transform cleaned authors data
         authors_data = []
         paper_authors_data = []
 
-        for idx, authorship in enumerate(authorships, start=1):
-            # Transform author
+        for idx, authorship in enumerate(clean_authorships, start=1):
+            # Transform author (should always succeed now since we pre-validated)
             author_data = transform_author_data(authorship, logger)
             if author_data:
                 authors_data.append(author_data)
@@ -973,19 +1095,23 @@ def process_paper(
             if paper_author_data:
                 paper_authors_data.append(paper_author_data)
 
+        # Verify we have valid data after cleaning
+        if not authors_data or not paper_authors_data:
+            logger.warning(f"Paper {paper_id} has no valid authors after cleaning")
+            stats.papers_failed += 1
+            return False
+
         # Insert in correct order (authors -> papers -> paper_authors)
         # to satisfy foreign key constraints
 
         # 1. Upsert authors first
-        if authors_data:
-            upsert_authors(conn, authors_data, stats, logger)
+        upsert_authors(conn, authors_data, stats, logger)
 
         # 2. Upsert paper
         upsert_papers(conn, [paper_data], stats, logger)
 
         # 3. Upsert paper-author relationships
-        if paper_authors_data:
-            upsert_paper_authors(conn, paper_authors_data, stats, logger)
+        upsert_paper_authors(conn, paper_authors_data, stats, logger)
 
         stats.total_papers_processed += 1
         return True
