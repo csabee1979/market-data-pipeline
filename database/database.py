@@ -24,11 +24,29 @@ class DatabaseConfig:
     """Configuration class for database connection parameters."""
 
     def __init__(self):
-        """Initialize database configuration from environment variables."""
+        """Initialize database configuration from Streamlit secrets or environment variables."""
         # Load environment variables from .env file
         load_dotenv()
 
-        # Database connection parameters from environment variables
+        # Try Streamlit secrets first (for cloud deployment), then fall back to environment variables
+        try:
+            import streamlit as st
+
+            if hasattr(st, "secrets") and st.secrets:
+                # Use Streamlit secrets (flat format, no section)
+                self.host = st.secrets.get("DB_HOST")
+                self.database = st.secrets.get("DB_NAME")
+                self.user = st.secrets.get("DB_USER")
+                self.password = st.secrets.get("DB_PASSWORD")
+                self.sslmode = st.secrets.get("DB_SSLMODE", "require")
+
+                # Only use secrets if all required values are present
+                if all([self.host, self.database, self.user, self.password]):
+                    return
+        except (ImportError, KeyError, AttributeError):
+            pass
+
+        # Fall back to environment variables (.env file)
         self.host = os.getenv("DB_HOST")
         self.database = os.getenv("DB_NAME")
         self.user = os.getenv("DB_USER")
