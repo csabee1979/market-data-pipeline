@@ -1,0 +1,120 @@
+# ============================================================================
+# Test Configuration for Papers Table Data Quality Tests
+# ============================================================================
+# Purpose: Configurable thresholds and parameters for SQL data quality tests
+# Usage: Modify these values to adjust test sensitivity and thresholds
+# ============================================================================
+
+# ============================================================================
+# Data Quality Thresholds
+# ============================================================================
+
+# Suspicious citation count threshold
+# Papers with more citations than this will be flagged as suspicious
+suspicious_citation_threshold: 100000
+
+# Time window for recently updated retracted papers (in days)
+# Retracted papers updated within this window will be flagged
+retracted_update_window_days: 30
+
+# Maximum allowed duplicate DOIs
+# Any DOI appearing more than this many times will be flagged
+max_duplicate_dois: 0
+
+# ============================================================================
+# Test Execution Settings
+# ============================================================================
+
+# Maximum number of sample records to show for each failing test
+max_sample_records: 10
+
+# Whether to show detailed sample records for passing tests
+show_samples_for_passing_tests: false
+
+# Whether to continue testing after first failure or stop
+continue_on_failure: true
+
+# ============================================================================
+# Database Connection Settings
+# ============================================================================
+# Note: These will be overridden by environment variables if present
+
+database:
+  host: "localhost"
+  port: 5432
+  database: "research_papers"
+  # Username and password should be set via environment variables:
+  # DB_USER and DB_PASSWORD
+
+# ============================================================================
+# Test Categories and Weights
+# ============================================================================
+# Used for scoring and prioritizing test results
+
+test_categories:
+  data_completeness:
+    weight: 1.0
+    critical: true
+    description: "Tests for missing required fields"
+  
+  data_validity:
+    weight: 1.0
+    critical: true
+    description: "Tests for invalid data ranges and formats"
+  
+  business_logic:
+    weight: 0.8
+    critical: true
+    description: "Tests for business rule violations"
+  
+  data_quality:
+    weight: 0.6
+    critical: false
+    description: "Tests for duplicates and anomalies"
+  
+  referential_integrity:
+    weight: 1.0
+    critical: true
+    description: "Tests for foreign key consistency"
+  
+  timestamps_metadata:
+    weight: 0.4
+    critical: false
+    description: "Tests for date/time validity"
+
+# ============================================================================
+# Output Settings
+# ============================================================================
+
+output:
+  # Format for test results: 'detailed', 'summary', 'json'
+  format: "detailed"
+  
+  # Whether to include SQL queries in output
+  include_queries: false
+  
+  # Whether to save results to file
+  save_to_file: true
+  
+  # Output file path (relative to script location)
+  output_file: "test_results.txt"
+  
+  # Whether to include timestamps in output
+  include_timestamps: true
+
+# ============================================================================
+# Advanced Settings
+# ============================================================================
+
+advanced:
+  # Query timeout in seconds
+  query_timeout: 300
+  
+  # Whether to use parallel execution for tests
+  parallel_execution: false
+  
+  # Number of parallel workers (if parallel_execution is true)
+  max_workers: 4
+  
+  # Whether to validate SQL syntax before execution
+  validate_sql: true

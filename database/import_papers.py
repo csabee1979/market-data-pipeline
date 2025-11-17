@@ -14,9 +14,10 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime, date
+from typing import Dict, List, Optional, Tuple, Any, Set
 from pathlib import Path
+import re
 
 import psycopg2
 from psycopg2 import Error as PostgresError
@@ -41,6 +42,11 @@ class ImportStats:
         self.paper_authors_updated = 0
         self.paper_authors_failed = 0
         self.total_papers_processed = 0
+        # Data quality tracking
+        self.date_mismatches_fixed = 0
+        self.duplicate_dois_skipped = 0
+        self.suspicious_citations_capped = 0
+        self.validation_warnings = 0
         self.start_time = datetime.now()
 
     def get_summary(self) -> str:
@@ -67,6 +73,12 @@ Paper-Authors Relationships:
   - Failed:    {self.paper_authors_failed}
 
 Duration: {duration:.2f} seconds
+
+Data Quality Fixes:
+  - Date mismatches fixed: {self.date_mismatches_fixed}
+  - Duplicate DOIs skipped: {self.duplicate_dois_skipped}
+  - Citations capped: {self.suspicious_citations_capped}
+  - Validation warnings: {self.validation_warnings}
 {'='*70}
 """
 
@@ -152,7 +164,172 @@ def safe_get(data: Dict, *keys, default=None) -> Any:
     return result if result is not None else default
 
 
-def transform_paper_data(paper: Dict, logger: logging.Logger) -> Optional[Dict]:
+# Global set to track DOIs and prevent duplicates within a batch
+_seen_dois: Set[str] = set()
+
+
+def validate_and_fix_dates(
+    publication_year: Optional[int],
+    publication_date: Optional[str],
+    logger: logging.Logger,
+    stats: ImportStats,
+) -> Tuple[Optional[int], Optional[str]]:
+    """
+    Validate and fix publication date/year consistency issues.
+
+    Args:
+        publication_year: Publication year from data
+        publication_date: Publication date string from data
+        logger: Logger instance
+        stats: Statistics tracker
+
+    Returns:
+        Tuple of (validated_year, validated_date)
+    """
+    try:
+        # If both are None, return as-is
+        if not publication_year and not publication_date:
+            return publication_year, publication_date
+
+        # If only year is provided, return as-is
+        if publication_year and not publication_date:
+            return publication_year, publication_date
+
+        # If only date is provided, extract year from date
+        if not publication_year and publication_date:
+            try:
+                parsed_date = datetime.fromisoformat(
+                    publication_date.replace("Z", "+00:00")
+                )
+                extracted_year = parsed_date.year
+                logger.debug(
+                    f"Extracted year {extracted_year} from date {publication_date}"
+                )
+                return extracted_year, publication_date
+            except ValueError:
+                logger.warning(f"Could not parse publication_date: {publication_date}")
+                stats.validation_warnings += 1
+                return publication_year, publication_date
+
+        # Both year and date are provided - check consistency
+        if publication_year and publication_date:
+            try:
+                parsed_date = datetime.fromisoformat(
+                    publication_date.replace("Z", "+00:00")
+                )
+                date_year = parsed_date.year
+
+                if publication_year != date_year:
+                    logger.warning(
+                        f"Date/year mismatch: year={publication_year}, date={publication_date} (year={date_year}). "
+                        f"Using date year: {date_year}"
+                    )
+                    stats.date_mismatches_fixed += 1
+                    # Prefer the year from the date as it's more specific
+                    return date_year, publication_date
+
+            except ValueError:
+                logger.warning(f"Could not parse publication_date: {publication_date}")
+                stats.validation_warnings += 1
+                # Keep original year if date is unparseable
+                return publication_year, publication_date
+
+        return publication_year, publication_date
+
+    except Exception as e:
+        logger.error(f"Error validating dates: {e}")
+        stats.validation_warnings += 1
+        return publication_year, publication_date
+
+
+def validate_citation_counts(
+    cited_by_count: int,
+    referenced_works_count: int,
+    logger: logging.Logger,
+    stats: ImportStats,
+    citation_cap: int = 100000,
+) -> Tuple[int, int]:
+    """
+    Validate and cap suspicious citation counts.
+
+    Args:
+        cited_by_count: Number of citations
+        referenced_works_count: Number of references
+        logger: Logger instance
+        stats: Statistics tracker
+        citation_cap: Maximum allowed citation count
+
+    Returns:
+        Tuple of (validated_citations, validated_references)
+    """
+    original_cited = cited_by_count
+    original_refs = referenced_works_count
+
+    # Cap citations if they exceed threshold
+    if cited_by_count > citation_cap:
+        logger.warning(
+            f"Suspicious citation count: {cited_by_count} > {citation_cap}. Capping to {citation_cap}"
+        )
+        cited_by_count = citation_cap
+        stats.suspicious_citations_capped += 1
+
+    # Cap references if they exceed threshold (references are usually lower than citations)
+    ref_cap = citation_cap // 10  # References cap is 1/10th of citation cap
+    if referenced_works_count > ref_cap:
+        logger.warning(
+            f"Suspicious reference count: {referenced_works_count} > {ref_cap}. Capping to {ref_cap}"
+        )
+        referenced_works_count = ref_cap
+        stats.suspicious_citations_capped += 1
+
+    return cited_by_count, referenced_works_count
+
+
+def validate_doi_uniqueness(
+    doi: Optional[str], paper_id: str, logger: logging.Logger, stats: ImportStats
+) -> bool:
+    """
+    Check if DOI has already been seen in this batch to prevent duplicates.
+
+    Args:
+        doi: DOI string
+        paper_id: Paper ID for logging
+        logger: Logger instance
+        stats: Statistics tracker
+
+    Returns:
+        True if DOI is unique/valid, False if duplicate
+    """
+    global _seen_dois
+
+    if not doi:
+        return True  # No DOI is fine
+
+    # Normalize DOI (remove common prefixes, convert to lowercase)
+    normalized_doi = doi.lower().strip()
+    if normalized_doi.startswith("https://doi.org/"):
+        normalized_doi = normalized_doi.replace("https://doi.org/", "")
+    if normalized_doi.startswith("doi:"):
+        normalized_doi = normalized_doi.replace("doi:", "")
+
+    if normalized_doi in _seen_dois:
+        logger.warning(f"Duplicate DOI detected: {doi} for paper {paper_id}. Skipping.")
+        stats.duplicate_dois_skipped += 1
+        return False
+
+    _seen_dois.add(normalized_doi)
+    return True
+
+
+def reset_doi_tracking():
+    """Reset the DOI tracking set for a new batch."""
+    global _seen_dois
+    _seen_dois.clear()
+
+
+def transform_paper_data(
+    paper: Dict, logger: logging.Logger, stats: ImportStats
+) -> Optional[Dict]:
     """
     Transform JSON paper data to database schema format.
 
@@ -265,13 +442,30 @@ def transform_paper_data(paper: Dict, logger: logging.Logger) -> Optional[Dict]:
 
         ai_relevance_score = 0.5 if has_ai_field else 0.0
 
+        # Validate DOI uniqueness - skip paper if duplicate
+        if not validate_doi_uniqueness(doi, paper_id, logger, stats):
+            return None
+
+        # Validate and fix date consistency
+        validated_year, validated_date = validate_and_fix_dates(
+            paper.get("publication_year"), paper.get("publication_date"), logger, stats
+        )
+
+        # Validate and cap citation counts
+        validated_citations, validated_references = validate_citation_counts(
+            paper.get("cited_by_count", 0),
+            paper.get("referenced_works_count", 0),
+            logger,
+            stats,
+        )
+
         # Build paper data dictionary
         paper_data = {
             "paper_id": paper_id,
             "doi": doi or None,
             "title": paper.get("title") or paper.get("display_name"),
-            "publication_year": paper.get("publication_year"),
-            "publication_date": paper.get("publication_date"),
+            "publication_year": validated_year,
+            "publication_date": validated_date,
             "paper_type": paper.get("type"),
             "language": paper.get("language"),
             "journal_name": source.get("display_name"),
@@ -290,8 +484,8 @@ def transform_paper_data(paper: Dict, logger: logging.Logger) -> Optional[Dict]:
             "country_count": len(all_countries),
             "first_institution": first_institution,
             "first_country": first_country,
-            "cited_by_count": paper.get("cited_by_count", 0),
-            "referenced_works_count": paper.get("referenced_works_count", 0),
+            "cited_by_count": validated_citations,
+            "referenced_works_count": validated_references,
             "fwci": None,  # Not in OpenAlex basic data
             "citation_percentile": None,  # Not in OpenAlex basic data
             "primary_topic": topics[0].get("display_name") if topics else None,
@@ -753,7 +947,7 @@ def process_paper(
     """
     try:
         # Transform paper data
-        paper_data = transform_paper_data(paper, logger)
+        paper_data = transform_paper_data(paper, logger, stats)
         if not paper_data:
             stats.papers_failed += 1
             return False
@@ -875,6 +1069,9 @@ def main():
     logger.info(f"Batch Size: {args.batch_size}")
 
     try:
+        # Reset DOI tracking for this batch
+        reset_doi_tracking()
+
         # Verify database connection
         logger.info("Verifying database connection...")
         config = DatabaseConfig()

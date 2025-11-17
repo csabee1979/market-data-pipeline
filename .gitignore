@@ -49,5 +49,14 @@ Thumbs.db
 # Temporary data files
 temp/
 
+# Log files and test results
+logs/
+*.log
+*test_results*.txt
+*log_sample*.txt
+console_log_sample.txt
+actual_test_results.txt
+import_validation_results.txt
+
 #.env
 .env
