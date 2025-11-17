@@ -12,7 +12,7 @@ import streamlit as st
 from typing import Dict, Any
 
 # Import database utilities from existing module
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "database"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database"))
 try:
     from database import get_connection, execute_query
 except ImportError:

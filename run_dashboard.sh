@@ -52,10 +52,10 @@ main() {
     print_status
     
     # Check if we're in the correct directory (look for key files)
-    if [[ ! -f "research_dashboard.py" || ! -f "dashboard_config.py" ]]; then
+    if [[ ! -f "dashboard_app/research_dashboard.py" || ! -f "dashboard_app/dashboard_config.py" ]]; then
         print_error "Dashboard files not found in current directory!"
         print_info "Please run this script from the market-data-pipeline directory"
-        print_info "Expected files: research_dashboard.py, dashboard_config.py"
+        print_info "Expected files: dashboard_app/research_dashboard.py, dashboard_app/dashboard_config.py"
         exit 1
     fi
     
@@ -155,7 +155,7 @@ except Exception as e:
         python run_dashboard.py
     else
         print_info "Launching directly with streamlit..."
-        streamlit run research_dashboard.py
+        streamlit run dashboard_app/research_dashboard.py
     fi
     
     # Cleanup message

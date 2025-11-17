@@ -9,7 +9,7 @@ This script consolidates the entire data pipeline workflow:
 4. Runs quality tests
 
 Usage:
-    python database/pipeline.py [--config CONFIG_FILE] [--dry-run]
+    python pipeline/pipeline.py [--config CONFIG_FILE] [--dry-run]
 
 Features:
 - Standalone pipeline orchestration
@@ -28,7 +28,9 @@ from typing import Dict, Optional
 import yaml
 
 # Import database module
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "database"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database")
+)
 from database import get_connection, DatabaseConfig
 
 # Import existing modules from database directory
@@ -42,7 +44,7 @@ from import_papers import (
 )
 from test_papers_table import TestRunner
 
-# Import existing paper fetcher from root directory
+# Import paper fetcher from same directory
 import fetch_ai_papers
 
 
@@ -533,8 +535,8 @@ Examples:
     parser.add_argument(
         "--config",
         "-c",
-        default="pipeline_config.yaml",
-        help="Path to configuration file (default: pipeline_config.yaml)",
+        default="pipeline/pipeline_config.yaml",
+        help="Path to configuration file (default: pipeline/pipeline_config.yaml)",
     )
 
     parser.add_argument(

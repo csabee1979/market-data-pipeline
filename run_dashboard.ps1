@@ -49,10 +49,10 @@ function Main {
     Write-Status
     
     # Check if we're in the correct directory (look for key files)
-    if (!(Test-Path "research_dashboard.py") -or !(Test-Path "dashboard_config.py")) {
+    if (!(Test-Path "dashboard_app\research_dashboard.py") -or !(Test-Path "dashboard_app\dashboard_config.py")) {
         Write-Error "Dashboard files not found in current directory!"
         Write-Info "Please run this script from the market-data-pipeline directory"
-        Write-Info "Expected files: research_dashboard.py, dashboard_config.py"
+        Write-Info "Expected files: dashboard_app\research_dashboard.py, dashboard_app\dashboard_config.py"
         Read-Host "Press Enter to exit"
         exit 1
     }
@@ -161,7 +161,7 @@ except Exception as e:
         & python run_dashboard.py
     } else {
         Write-Info "Launching directly with streamlit..."
-        & streamlit run research_dashboard.py
+        & streamlit run dashboard_app\research_dashboard.py
     }
     
     # Cleanup message

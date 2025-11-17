@@ -100,7 +100,9 @@ def main():
 
     try:
         # Launch Streamlit
-        dashboard_file = Path(__file__).parent / "research_dashboard.py"
+        dashboard_file = (
+            Path(__file__).parent / "dashboard_app" / "research_dashboard.py"
+        )
 
         if not dashboard_file.exists():
             print(f"❌ Dashboard file not found: {dashboard_file}")

@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM =============================================================================
 REM AI Research Papers Dashboard Launcher (Windows)
 REM =============================================================================
@@ -20,15 +21,15 @@ echo 🔬 AI Research Papers Dashboard
 echo ==========================================
 
 REM Check if we're in the correct directory (look for key files)
-if not exist "research_dashboard.py" (
-    echo ❌ research_dashboard.py not found in current directory!
+if not exist "dashboard_app\research_dashboard.py" (
+    echo ❌ dashboard_app\research_dashboard.py not found!
     echo ℹ️  Please run this script from the market-data-pipeline directory
     pause
     exit /b 1
 )
 
-if not exist "dashboard_config.py" (
-    echo ❌ dashboard_config.py not found in current directory!
+if not exist "dashboard_app\dashboard_config.py" (
+    echo ❌ dashboard_app\dashboard_config.py not found!
     echo ℹ️  Please run this script from the market-data-pipeline directory
     pause
     exit /b 1
@@ -102,10 +103,7 @@ if not exist ".env" (
 REM Test database connection (optional)
 if exist "database\database.py" (
     echo ℹ️  Testing database connection...
-    python -c "import sys; import os; sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath('.')), 'database')); from database import verify_connection; success, message = verify_connection(); print('✅ Database connection successful' if success else f'⚠️  Database connection warning: {message}')" 2>nul
-    if errorlevel 1 (
-        echo ⚠️  Could not test database connection
-    )
+    python -c "import sys, os; sys.path.insert(0, 'database'); from database import verify_connection; s, m = verify_connection(); print('✅ Database connection successful' if s else '⚠️  Database connection warning:', m)" 2>nul || echo ⚠️  Could not test database connection
 )
 
 REM Launch dashboard
@@ -121,7 +119,7 @@ if exist "run_dashboard.py" (
     python run_dashboard.py
 ) else (
     echo ℹ️  Launching directly with streamlit...
-    streamlit run research_dashboard.py
+    streamlit run dashboard_app\research_dashboard.py
 )
 
 REM Cleanup message

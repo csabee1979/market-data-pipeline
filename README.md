@@ -125,7 +125,7 @@ python run_dashboard.py
 
 #### **Option C: Direct Streamlit**
 ```bash
-streamlit run research_dashboard.py
+streamlit run dashboard_app/research_dashboard.py
 ```
 
 The dashboard opens at `http://localhost:8501` with:
@@ -152,21 +152,21 @@ Run the complete pipeline with a single command:
 
 ```bash
 # Run the complete pipeline
-python pipeline.py
+python pipeline/pipeline.py
 
 # Dry run (validate without making changes)
-python pipeline.py --dry-run
+python pipeline/pipeline.py --dry-run
 
 # Use custom configuration
-python pipeline.py --config my_config.yaml
+python pipeline/pipeline.py --config my_config.yaml
 
 # Enable verbose logging
-python pipeline.py --verbose
+python pipeline/pipeline.py --verbose
 ```
 
 **Pipeline Configuration**
 
-The pipeline uses `pipeline_config.yaml` for configuration:
+The pipeline uses `pipeline/pipeline_config.yaml` for configuration:
 
 ```yaml
 api:
@@ -191,10 +191,10 @@ logging:
 
 The pipeline performs these stages in sequence:
 
-1. **Fetch Papers**: Uses `fetch_ai_papers.py` to get recent AI papers from OpenAlex API
-2. **Deploy Schema**: Ensures database tables exist using `deploy_schema.py`
-3. **Load Data**: Processes and imports papers using `import_papers.py`
-4. **Quality Tests**: Runs comprehensive data validation using `test_papers_table.py`
+1. **Fetch Papers**: Uses `pipeline/fetch_ai_papers.py` to get recent AI papers from OpenAlex API
+2. **Deploy Schema**: Ensures database tables exist using `database/deploy_schema.py`
+3. **Load Data**: Processes and imports papers using `database/import_papers.py`
+4. **Quality Tests**: Runs comprehensive data validation using `database/test_papers_table.py`
 
 **Example Pipeline Output**
 
@@ -235,7 +235,7 @@ You can also run individual components of the pipeline:
 Fetch recent AI papers from OpenAlex (last 3 days):
 
 ```bash
-python fetch_ai_papers.py
+python pipeline/fetch_ai_papers.py
 ```
 
 **What it does:**
@@ -389,7 +389,14 @@ See `database/SCHEMA_SUMMARY.md` for detailed schema documentation.
 
 ```
 market-data-pipeline/
-├── database/
+├── pipeline/                # 🔄 Data Pipeline Components
+│   ├── pipeline.py          # Consolidated pipeline orchestrator
+│   ├── pipeline_config.yaml # Pipeline configuration
+│   └── fetch_ai_papers.py   # OpenAlex API fetcher
+├── dashboard_app/           # 📊 Analytics Dashboard Components
+│   ├── research_dashboard.py # Streamlit analytics dashboard
+│   └── dashboard_config.py  # Dashboard configuration & utilities
+├── database/                # 🗄️ Database Management
 │   ├── database.py          # Database connection utilities
 │   ├── deploy_schema.py     # Schema deployment script
 │   ├── import_papers.py     # Paper import ETL script
@@ -399,13 +406,8 @@ market-data-pipeline/
 │   ├── test_config.yaml     # Data quality test configuration
 │   ├── tests/               # SQL test files by category
 │   └── SCHEMA_SUMMARY.md    # Schema documentation
-├── logs/                    # Import logs (timestamped)
-├── temp/                    # Temporary JSON files
-├── pipeline.py              # Consolidated pipeline orchestrator
-├── pipeline_config.yaml     # Pipeline configuration
-├── fetch_ai_papers.py       # OpenAlex API fetcher
-├── research_dashboard.py    # 📊 Streamlit analytics dashboard
-├── dashboard_config.py      # Dashboard configuration & utilities
+├── logs/                    # 📄 Import logs (timestamped)
+├── temp/                    # 📁 Temporary JSON files
 ├── run_dashboard.py         # 🐍 Python dashboard launcher
 ├── run_dashboard.sh         # 🐧 Linux/Mac bash launcher
 ├── run_dashboard.bat        # 🪟 Windows batch launcher
@@ -424,7 +426,7 @@ market-data-pipeline/
 .venv\Scripts\activate
 
 # Run complete pipeline
-python pipeline.py --verbose
+python pipeline/pipeline.py --verbose
 
 # Check logs for details
 type logs\pipeline_*.log
@@ -437,7 +439,7 @@ type logs\pipeline_*.log
 .venv\Scripts\activate
 
 # 1. Fetch recent papers
-python fetch_ai_papers.py
+python pipeline/fetch_ai_papers.py
 
 # 2. Deploy schema (if needed)
 python database/deploy_schema.py
@@ -544,7 +546,7 @@ Log files include:
 **Slow dashboard performance:**
 - Database queries are cached for 5 minutes
 - Large datasets may take time to load initially
-- Consider adjusting cache TTL in `dashboard_config.py`
+- Consider adjusting cache TTL in `dashboard_app/dashboard_config.py`
 
 **Empty visualizations:**
 - Check if database has data (run pipeline first)
@@ -647,11 +649,11 @@ Multiple launcher scripts are provided for easy dashboard execution across diffe
 When adding new features:
 
 1. Update the database schema in `database/schema.sql`
-2. Redeploy schema using `deploy_schema.py`
-3. Update transformation logic in `import_papers.py`
+2. Redeploy schema using `database/deploy_schema.py`
+3. Update transformation logic in `database/import_papers.py`
 4. Add data quality tests in `database/tests/`
-5. Update pipeline configuration if needed
-6. Add dashboard queries in `dashboard_config.py` if needed
+5. Update pipeline configuration in `pipeline/pipeline_config.yaml` if needed
+6. Add dashboard queries in `dashboard_app/dashboard_config.py` if needed
 7. Update launcher scripts if new dependencies are required
 8. Add tests to verify functionality
 9. Update this README with new features
